@@ -62,6 +62,14 @@ predicate isDictWithKey(Expr dict, Expr key) {
     source.getName() = "update" and
     isDictWithKey(source.getArg(0), key)
   )
+  or
+  // Dict comprehension of one containing key, without a condition, using the key
+  exists(DictComp source |
+    DataFlow::localFlow(DataFlow::exprNode(source), DataFlow::exprNode(dict)) and
+    isDictWithKey(source.getIterable(), key) and
+    source.getElt().(Tuple).getElt(1).(Name).getVariable() = source.getIterationVariable(0) and
+    not source.getNthInnerLoop(_).getAStmt() instanceof If
+  )
 }
 
 predicate isList(Expr list) {
