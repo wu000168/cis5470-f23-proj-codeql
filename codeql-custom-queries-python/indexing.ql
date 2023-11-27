@@ -8,6 +8,13 @@
 import python
 import semmle.python.dataflow.new.DataFlow
 
+predicate isListWithIndex(Expr e, int index) {
+  exists(List source |
+    DataFlow::localFlow(DataFlow::exprNode(source), DataFlow::exprNode(e)) and
+    exists(Expr elem | source.getElt(index) = elem)
+  )
+}
+
 from Subscript sink, string msg
 where
   (
@@ -28,10 +35,7 @@ where
   msg = "This is a safe dictionary access of '" + sink.getIndex().(Str).getS() + "'"
   or
   // A list literal defined long enough
-  exists(List source |
-    DataFlow::localFlow(DataFlow::exprNode(source), DataFlow::exprNode(sink.getValue())) and
-    exists(Expr elem | source.getElt(sink.getIndex().(IntegerLiteral).getValue()) = elem)
-  ) and
+  isListWithIndex(sink.getValue(), sink.getIndex().(IntegerLiteral).getValue()) and
   msg = "This is a safe list access of '" + sink.getIndex().(IntegerLiteral).getValue() + "'"
   or
   // Allow assigning to a dict
