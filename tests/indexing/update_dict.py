@@ -14,4 +14,4 @@ def safe_2(d: dict):
 def unsafe(d: dict):
     d.update({'a': 0})
 
-    return d['a'] + d['b']
+    return d['a'] + d['b']  # First is safe, second is unsafe

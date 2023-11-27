@@ -6,7 +6,18 @@
  */
 
 import python
+import semmle.python.ApiGraphs
 import semmle.python.dataflow.new.DataFlow
+
+class MethodCall extends Call {
+  Attribute attr;
+
+  MethodCall() { attr = this.getFunc().(Attribute) }
+
+  Expr getValue() { result = attr.getValue() }
+
+  string getName() { result = attr.getName() }
+}
 
 predicate isDict(Expr dict) {
   // A dict literal defined
@@ -36,12 +47,19 @@ predicate isDictWithKey(Expr dict, Expr key) {
     source.getAKey().(Str).getS() = key.(Str).getS()
   )
   or
-  // A dict was assigned a value for the key
+  // Dict was assigned a value for the key
   exists(AssignStmt source |
     DataFlow::localFlow(DataFlow::exprNode(source.getATarget().(Subscript).getValue()),
       DataFlow::exprNode(dict)) and
     source.getATarget().(Subscript).getIndex().(Str).getS() = key.(Str).getS() and
     source.getATarget().(Subscript).getValue() != dict
+  )
+  or
+  // Dict was updated using one with key
+  exists(MethodCall source |
+    DataFlow::localFlow(DataFlow::exprNode(source.getValue()), DataFlow::exprNode(dict)) and
+    source.getName() = "update" and
+    isDictWithKey(source.getArg(0), key)
   )
 }
 
@@ -53,17 +71,20 @@ predicate isListWithIndex(Expr e, int index) {
   )
 }
 
-from Subscript sink, string msg
-where
+string getSubscriptMsg(Subscript sink) {
   isDictWithKey(sink.getValue(), sink.getIndex()) and
-  msg = "This is a safe dictionary access of '" + sink.getIndex().(Str).getS() + "'"
+  result = "This is a safe dictionary access of '" + sink.getIndex().(Str).getS() + "'"
   or
   isListWithIndex(sink.getValue(), sink.getIndex().(IntegerLiteral).getValue()) and
-  msg = "This is a safe list access of '" + sink.getIndex().(IntegerLiteral).getValue() + "'"
+  result = "This is a safe list access of '" + sink.getIndex().(IntegerLiteral).getValue() + "'"
   or
   // Allow assigning to a dict
   exists(AssignStmt asgn |
     asgn.getATarget().(Subscript).getValue() = sink.getValue() and isDict(sink.getValue())
   ) and
-  msg = "This is a safe indexed assignment"
+  result = "This is a safe indexed assignment"
+}
+
+from Subscript sink, string msg
+where msg = getSubscriptMsg(sink)
 select sink, msg
