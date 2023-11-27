@@ -25,7 +25,14 @@ where
       source.getATarget() != sink
     )
   ) and
-  msg = "This is a safe index access of '" + sink.getIndex().(Str).getS() + "'"
+  msg = "This is a safe dictionary access of '" + sink.getIndex().(Str).getS() + "'"
+  or
+  // A list literal defined long enough
+  exists(List source |
+    DataFlow::localFlow(DataFlow::exprNode(source), DataFlow::exprNode(sink.getValue())) and
+    exists(Expr elem | source.getElt(sink.getIndex().(IntegerLiteral).getValue()) = elem)
+  ) and
+  msg = "This is a safe list access of '" + sink.getIndex().(IntegerLiteral).getValue() + "'"
   or
   // Allow assigning to a dict
   exists(DataFlow::ParameterNode source |
