@@ -4,7 +4,15 @@ def safe():
     return d['s']
 
 
-def unsafe():
+def unsafe_1():
     d = {'x': 1}
 
     return d['y']
+
+
+def unsafe_2():
+    d = {'x': 1}
+
+    del d['x']
+
+    return d['x']
