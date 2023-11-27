@@ -22,7 +22,23 @@ def safe_3():
     return d['a']
 
 
-def unsafe():
+def unsafe_1():
+    d = {'a': 1, 'b': 2}
+
+    d = {k: 0 for k in d}
+
+    return d['c']
+
+
+def unsafe_2():
+    d = {'a': 1, 'b': 2}
+
+    d = {k: v + 1 for k, v in d.items()}
+
+    return d['c']
+
+
+def unsafe_3():
     d = {'a': 1, 'b': 2}
 
     d = {k: v for k, v in d.items() if False}
