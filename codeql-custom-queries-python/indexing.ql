@@ -57,17 +57,47 @@ predicate isDictWithKey(Expr dict, Expr key) {
   or
   // Dict was updated using one with key
   exists(MethodCall source |
+    isDict(source.getValue()) and
     DataFlow::localFlow(DataFlow::exprNode(source.getValue()), DataFlow::exprNode(dict)) and
     source.getName() = "update" and
     isDictWithKey(source.getArg(0), key)
   )
 }
 
-predicate isListWithIndex(Expr e, int index) {
+predicate isList(Expr list) {
+  // A list literal defined
+  exists(List source | DataFlow::localFlow(DataFlow::exprNode(source), DataFlow::exprNode(list)))
+  or
+  // Argument annotated as a list
+  exists(DataFlow::ParameterNode source |
+    DataFlow::localFlow(source, DataFlow::exprNode(list)) and
+    (
+      source.getParameter().getAnnotation().toString() = "list"
+      or
+      source.getParameter().getAnnotation().toString() = "List"
+      or
+      source.getParameter().getAnnotation().toString().prefix(4) = "list" and
+      source.getParameter().getAnnotation().toString().charAt(5) = "["
+      or
+      source.getParameter().getAnnotation().toString().prefix(4) = "List" and
+      source.getParameter().getAnnotation().toString().charAt(5) = "["
+    )
+  )
+}
+
+predicate isListWithIndex(Expr list, int index) {
   // A list literal defined long enough
   exists(List source |
-    DataFlow::localFlow(DataFlow::exprNode(source), DataFlow::exprNode(e)) and
+    DataFlow::localFlow(DataFlow::exprNode(source), DataFlow::exprNode(list)) and
     exists(Expr elem | source.getElt(index) = elem)
+  )
+  or
+  // List was extended using one long enough
+  exists(MethodCall source |
+    isList(source.getValue()) and
+    DataFlow::localFlow(DataFlow::exprNode(source.getValue()), DataFlow::exprNode(list)) and
+    source.getName() = "extend" and
+    isListWithIndex(source.getArg(0), index)
   )
 }
 
