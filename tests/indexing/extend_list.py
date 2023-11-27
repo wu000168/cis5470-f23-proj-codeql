@@ -1,5 +1,5 @@
 def safe(l: list):
-    '''`l` definitely has lenght at least 1'''
+    '''`l` definitely has length at least 1'''
 
     l.extend([1])
 
