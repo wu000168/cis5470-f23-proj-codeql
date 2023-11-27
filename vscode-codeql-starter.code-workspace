@@ -1,0 +1,13 @@
+{
+	"folders": [
+		{
+			"path": "codeql-indexing-python"
+		},
+		{
+			"path": "ql"
+		}
+	],
+	"settings": {
+		"omnisharp.autoStart": false
+	}
+}
