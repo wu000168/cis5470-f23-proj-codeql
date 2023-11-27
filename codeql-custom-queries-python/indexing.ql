@@ -32,10 +32,10 @@ predicate isDict(Expr dict) {
       source.getParameter().getAnnotation().toString() = "Dict"
       or
       source.getParameter().getAnnotation().toString().prefix(4) = "dict" and
-      source.getParameter().getAnnotation().toString().charAt(5) = "["
+      source.getParameter().getAnnotation().toString().charAt(4) = "["
       or
       source.getParameter().getAnnotation().toString().prefix(4) = "Dict" and
-      source.getParameter().getAnnotation().toString().charAt(5) = "["
+      source.getParameter().getAnnotation().toString().charAt(4) = "["
     )
   )
 }
@@ -98,6 +98,13 @@ predicate isListWithIndex(Expr list, int index) {
     DataFlow::localFlow(DataFlow::exprNode(source.getValue()), DataFlow::exprNode(list)) and
     source.getName() = "extend" and
     isListWithIndex(source.getArg(0), index)
+  )
+  or
+  // List comprehension of one long enough, without a condition
+  exists(ListComp source |
+    DataFlow::localFlow(DataFlow::exprNode(source), DataFlow::exprNode(list)) and
+    isListWithIndex(source.getIterable(), index) and
+    not source.getNthInnerLoop(_).getAStmt() instanceof If
   )
 }
 
