@@ -40,18 +40,24 @@ predicate isDict(Expr dict) {
   )
 }
 
-predicate isDictWithKey(Expr dict, Expr key) {
+predicate isDictWithKey(Expr dict, string key) {
   // A dict literal defined with the exact key
   exists(Dict source |
     DataFlow::localFlow(DataFlow::exprNode(source), DataFlow::exprNode(dict)) and
-    source.getAKey().(Str).getS() = key.(Str).getS()
+    (
+      key = source.getAKey().(Str).getS() or
+      key = source.getAKey().(Num).getN()
+    )
   )
   or
   // Dict was assigned a value for the key
   exists(AssignStmt source |
     DataFlow::localFlow(DataFlow::exprNode(source.getATarget().(Subscript).getValue()),
       DataFlow::exprNode(dict)) and
-    source.getATarget().(Subscript).getIndex().(Str).getS() = key.(Str).getS() and
+    (
+      key = source.getATarget().(Subscript).getIndex().(Str).getS() or
+      key = source.getATarget().(Subscript).getIndex().(Num).getN()
+    ) and
     source.getATarget().(Subscript).getValue() != dict
   )
   or
@@ -136,17 +142,26 @@ predicate isListWithIndex(Expr list, int index) {
 }
 
 string getSubscriptMsg(Subscript sink) {
-  isDictWithKey(sink.getValue(), sink.getIndex()) and
-  result = "This is a safe dictionary access of '" + sink.getIndex().(Str).getS() + "'"
-  or
-  isListWithIndex(sink.getValue(), sink.getIndex().(IntegerLiteral).getValue()) and
-  result = "This is a safe list access of '" + sink.getIndex().(IntegerLiteral).getValue() + "'"
-  or
   // Allow assigning to a dict
   exists(AssignStmt asgn |
     asgn.getATarget().(Subscript).getValue() = sink.getValue() and isDict(sink.getValue())
   ) and
-  result = "This is a safe indexed assignment"
+  result = "This is a safe indexed assignment to a dict"
+  or
+  // Allow assigning to a list
+  isListWithIndex(sink.getValue(), sink.getIndex().(IntegerLiteral).getValue()) and
+  (
+    if exists(AssignStmt asgn | asgn.getATarget() = sink)
+    then result = "This is a safe indexed assignment to a list"
+    else
+      result = "This is a safe list access of '" + sink.getIndex().(IntegerLiteral).getValue() + "'"
+  )
+  or
+  (
+    isDictWithKey(sink.getValue(), sink.getIndex().(Str).getS()) or
+    isDictWithKey(sink.getValue(), sink.getIndex().(Num).getN())
+  ) and
+  result = "This is a safe dictionary access of '" + sink.getIndex().(Str).getS() + "'"
 }
 
 from Subscript sink, string msg
