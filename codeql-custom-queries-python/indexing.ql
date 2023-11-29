@@ -52,18 +52,27 @@ module DictIndexConfig implements DataFlow::StateConfigSig {
   predicate isAdditionalFlowStep(DataFlow::Node node1, DataFlow::Node node2) {
     // Transfer flow from `node1` when used to `update` `node2`
     exists(MethodCall call |
+      node1.asExpr() = call.getAnArg() and
+      node2.asExpr() = call.getValue() and
       isDict(call.getValue()) and
-      call.getName() = "update" and
-      call.getValue() = node2.asExpr() and
-      call.getAnArg() = node1.asExpr()
+      call.getName() = "update"
     )
     or
     // Dict comprehension of one containing key, without a condition, using the key
     exists(DictComp comp |
-      comp = node2.asExpr() and
-      isDict(comp.getIterable()) and
-      comp.getIterable() = node1.asExpr() and
+      node1.asExpr() = comp.getIterable() and
+      node2.asExpr() = comp and
       comp.getElt().(Tuple).getElt(1).(Name).getVariable() = comp.getIterationVariable(0) and
+      not comp.getNthInnerLoop(_).getAStmt() instanceof If
+    )
+    or
+    // Dict comprehension of `items()` of one containing key, without a condition, using the key
+    exists(DictComp comp |
+      node1.asExpr() = comp.getIterable().(MethodCall).getValue() and
+      node2.asExpr() = comp and
+      comp.getIterable().(MethodCall).getName() = "items" and
+      comp.getElt().(Tuple).getElt(1).(Name).getVariable() =
+        comp.getNthInnerLoop(_).getTarget().(Tuple).getElt(0).(Name).getVariable() and
       not comp.getNthInnerLoop(_).getAStmt() instanceof If
     )
   }
