@@ -135,6 +135,13 @@ module DictKeyConfig implements DataFlow::StateConfigSig {
       sub.getValue() = node.asExpr() and
       state = exprToState(sub.getIndex())
     )
+    or
+    // Popping key
+    exists(MethodCall call |
+      node.asExpr() = call.getValue() and
+      call.getName() = "pop" and
+      state = exprToState(call.getArg(0))
+    )
   }
 
   predicate isAdditionalFlowStep(DataFlow::Node node1, DataFlow::Node node2) {
