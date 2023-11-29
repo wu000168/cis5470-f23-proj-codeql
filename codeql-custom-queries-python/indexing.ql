@@ -194,26 +194,36 @@ module DictKeyConfig implements DataFlow::StateConfigSig {
 module DictKeyFlow = DataFlow::GlobalWithState<DictKeyConfig>;
 
 string getSubscriptMsg(Subscript sub) {
-  exists(DataFlow::Node source | ListIndexFlow::flow(source, DataFlow::exprNode(sub.getValue()))) and
+  ListIndexConfig::isList(sub.getValue()) and
+  not exists(DataFlow::Node source |
+    ListIndexFlow::flow(source, DataFlow::exprNode(sub.getValue()))
+  ) and
   (
     if exists(AssignStmt asgn | asgn.getATarget() = sub)
     then (
       result =
-        "This is a safe list assignment at index " + sub.getIndex().(IntegerLiteral).getValue() or
+        "This is a potentially unsafe list assignment at index " +
+          sub.getIndex().(IntegerLiteral).getValue() or
       result =
-        "This is a safe list assignment at index " +
+        "This is a potentially unsafe list assignment at index " +
           sub.getIndex().(NegativeIntegerLiteral).getValue()
     ) else (
-      result = "This is a safe list access at index " + sub.getIndex().(IntegerLiteral).getValue() or
       result =
-        "This is a safe list access at index " + sub.getIndex().(NegativeIntegerLiteral).getValue()
+        "This is a potentially unsafe list access at index " +
+          sub.getIndex().(IntegerLiteral).getValue() or
+      result =
+        "This is a potentially unsafe list access at index " +
+          sub.getIndex().(NegativeIntegerLiteral).getValue()
     )
   )
   or
-  exists(DataFlow::Node source | DictKeyFlow::flow(source, DataFlow::exprNode(sub.getValue()))) and
+  DictKeyConfig::isDict(sub.getValue()) and
+  not exists(AssignStmt asgn | asgn.getATarget() = sub) and
+  not exists(DataFlow::Node source | DictKeyFlow::flow(source, DataFlow::exprNode(sub.getValue()))) and
   (
-    result = "This is a safe dictionary access of \"" + sub.getIndex().(Str).getS() + "\"" or
-    result = "This is a safe dictionary access of " + sub.getIndex().(Num).getN()
+    result =
+      "This is a potentially unsafe dictionary access of \"" + sub.getIndex().(Str).getS() + "\"" or
+    result = "This is a potentially unsafe dictionary access of " + sub.getIndex().(Num).getN()
   )
 }
 
