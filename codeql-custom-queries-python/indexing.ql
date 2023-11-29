@@ -49,10 +49,13 @@ module DictIndexConfig implements DataFlow::StateConfigSig {
     )
   }
 
-  predicate isAdditionalFlowStep(
-    DataFlow::Node node1, FlowState state1, DataFlow::Node node2, FlowState state2
-  ) {
-    none()
+  predicate isAdditionalFlowStep(DataFlow::Node node1, DataFlow::Node node2) {
+    exists(MethodCall call |
+      isDict(call.getValue()) and
+      call.getName() = "update" and
+      call.getValue() = node2.asExpr() and
+      call.getAnArg() = node1.asExpr()
+    )
   }
 
   predicate isSink(DataFlow::Node sink, FlowState state) {
