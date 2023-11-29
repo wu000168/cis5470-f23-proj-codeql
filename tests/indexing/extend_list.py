@@ -11,6 +11,16 @@ def safe_2(l: list):
 
     l = [1, 2, 3]
 
+    l.extend([4])
+
+    return l[2]
+
+
+def safe_3(l: list):
+    '''`l` definitely has length at least 1'''
+
+    l = [1, 2, 3]
+
     l.extend([4, 5, 6])
 
     return l[5]
