@@ -45,13 +45,13 @@ module ListIndexConfig implements DataFlow::StateConfigSig {
 
   predicate isSource(DataFlow::Node source, FlowState state) {
     // A list literal defined long enough
-    exists(Expr elem |
-      source.asExpr().(List).getElt(state) = elem or
-      source.asExpr().(List).getElt(-state - 1) = elem
-    )
+    exists(Expr elem | source.asExpr().(List).getElt(state) = elem)
   }
 
-  predicate isBarrierOut(DataFlow::Node node, FlowState state) { none() }
+  predicate isBarrierOut(DataFlow::Node node) {
+    // List was cleared
+    exists(MethodCall call | node.asExpr() = call.getValue() and call.getName() = "clear")
+  }
 
   predicate isAdditionalFlowStep(DataFlow::Node node1, DataFlow::Node node2) {
     // List was extended using one long enough
@@ -71,10 +71,9 @@ module ListIndexConfig implements DataFlow::StateConfigSig {
     // Subscript
     exists(Subscript sub |
       sink.asExpr() = sub.getValue() and
-      not exists(AssignStmt asgn | asgn.getATarget() = sub) and
       (
         state = sub.getIndex().(IntegerLiteral).getValue() or
-        state = sub.getIndex().(NegativeIntegerLiteral).getValue()
+        state = -sub.getIndex().(NegativeIntegerLiteral).getValue() - 1
       )
     )
   }
@@ -122,6 +121,11 @@ module DictKeyConfig implements DataFlow::StateConfigSig {
       sub.getValue() = source.asExpr() and
       state = exprToState(sub.getIndex())
     )
+  }
+
+  predicate isBarrierOut(DataFlow::Node node) {
+    // Dict was cleared
+    exists(MethodCall call | node.asExpr() = call.getValue() and call.getName() = "clear")
   }
 
   predicate isBarrierOut(DataFlow::Node node, FlowState state) {
@@ -182,16 +186,28 @@ module DictKeyConfig implements DataFlow::StateConfigSig {
 
 module DictKeyFlow = DataFlow::GlobalWithState<DictKeyConfig>;
 
-string getSubscriptMsg(Subscript sink) {
-  exists(DataFlow::Node source | ListIndexFlow::flow(source, DataFlow::exprNode(sink.getValue()))) and
+string getSubscriptMsg(Subscript sub) {
+  exists(DataFlow::Node source | ListIndexFlow::flow(source, DataFlow::exprNode(sub.getValue()))) and
   (
-    result = "This is a safe list access of '" + sink.getIndex().(IntegerLiteral).getValue() + "'" or
-    result =
-      "This is a safe list access of '" + sink.getIndex().(NegativeIntegerLiteral).getValue() + "'"
+    if exists(AssignStmt asgn | asgn.getATarget() = sub)
+    then (
+      result =
+        "This is a safe list assignment at index " + sub.getIndex().(IntegerLiteral).getValue() or
+      result =
+        "This is a safe list assignment at index " +
+          sub.getIndex().(NegativeIntegerLiteral).getValue()
+    ) else (
+      result = "This is a safe list access at index " + sub.getIndex().(IntegerLiteral).getValue() or
+      result =
+        "This is a safe list access at index " + sub.getIndex().(NegativeIntegerLiteral).getValue()
+    )
   )
   or
-  exists(DataFlow::Node source | DictKeyFlow::flow(source, DataFlow::exprNode(sink.getValue()))) and
-  result = "This is a safe dictionary access of '" + sink.getIndex().(Str).getS() + "'"
+  exists(DataFlow::Node source | DictKeyFlow::flow(source, DataFlow::exprNode(sub.getValue()))) and
+  (
+    result = "This is a safe dictionary access of \"" + sub.getIndex().(Str).getS() + "\"" or
+    result = "This is a safe dictionary access of " + sub.getIndex().(Num).getN()
+  )
 }
 
 from Subscript sink, string msg
