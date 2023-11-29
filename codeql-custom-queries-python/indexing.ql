@@ -19,6 +19,40 @@ class MethodCall extends Call {
   string getName() { result = attr.getName() }
 }
 
+module DictIndexConfig implements DataFlow::StateConfigSig {
+  class FlowState = string;
+
+  predicate isSource(DataFlow::Node source, FlowState state) {
+    // Dictionary literal
+    (
+      state = "\"" + source.asExpr().(Dict).getAKey().(Str).getS() + "\""
+      or
+      state = source.asExpr().(Dict).getAKey().(Num).getN()
+    )
+    or
+    // Assignment to dictionary
+    isDict(source.asExpr()) and
+    exists(AssignStmt asgn, Subscript sub |
+      asgn.getATarget() = sub and
+      sub.getValue() = source.asExpr() and
+      (
+        state = "\"" + sub.getIndex().(Str).getS() + "\"" or
+        state = sub.getIndex().(Num).getN()
+      )
+    )
+  }
+
+  predicate isSink(DataFlow::Node sink, FlowState state) {
+    exists(Subscript sub |
+      sink.asExpr() = sub.getValue() and
+      not exists(AssignStmt asgn | asgn.getATarget() = sub) and
+      (state = "\"" + sub.getIndex().(Str).getS() + "\"" or state = sub.getIndex().(Num).getN())
+    )
+  }
+}
+
+module DictIndexFlow = DataFlow::GlobalWithState<DictIndexConfig>;
+
 predicate isDict(Expr dict) {
   // A dict literal defined
   exists(Dict source | DataFlow::localFlow(DataFlow::exprNode(source), DataFlow::exprNode(dict)))
@@ -164,6 +198,12 @@ string getSubscriptMsg(Subscript sink) {
   result = "This is a safe dictionary access of '" + sink.getIndex().(Str).getS() + "'"
 }
 
-from Subscript sink, string msg
-where msg = getSubscriptMsg(sink)
-select sink, msg
+// from Subscript sink, string msg
+// where msg = getSubscriptMsg(sink)
+// select sink, msg
+// from DataFlow::Node source, DataFlow::FlowState state
+// where DictIndexConfig::isSink(source, state)
+// select source, state.toString()
+from DataFlow::Node source, Subscript sink
+where DictIndexFlow::flow(source, DataFlow::exprNode(sink.getValue()))
+select sink, sink.toString()
