@@ -19,12 +19,96 @@ class MethodCall extends Call {
   string getName() { result = attr.getName() }
 }
 
-module DictIndexConfig implements DataFlow::StateConfigSig {
+module ListIndexConfig implements DataFlow::StateConfigSig {
+  class FlowState = int;
+
+  additional predicate isList(Expr list) {
+    // A list literal defined
+    exists(List source | DataFlow::localFlow(DataFlow::exprNode(source), DataFlow::exprNode(list)))
+    or
+    // Argument annotated as a list
+    exists(DataFlow::ParameterNode source |
+      DataFlow::localFlow(source, DataFlow::exprNode(list)) and
+      (
+        source.getParameter().getAnnotation().toString() = "list"
+        or
+        source.getParameter().getAnnotation().toString() = "List"
+        or
+        source.getParameter().getAnnotation().toString().prefix(4) = "list" and
+        source.getParameter().getAnnotation().toString().charAt(5) = "["
+        or
+        source.getParameter().getAnnotation().toString().prefix(4) = "List" and
+        source.getParameter().getAnnotation().toString().charAt(5) = "["
+      )
+    )
+  }
+
+  predicate isSource(DataFlow::Node source, FlowState state) {
+    // A list literal defined long enough
+    exists(Expr elem |
+      source.asExpr().(List).getElt(state) = elem or
+      source.asExpr().(List).getElt(-state - 1) = elem
+    )
+  }
+
+  predicate isBarrierOut(DataFlow::Node node, FlowState state) { none() }
+
+  predicate isAdditionalFlowStep(DataFlow::Node node1, DataFlow::Node node2) {
+    // List was extended using one long enough
+    exists(MethodCall call |
+      node1.asExpr() = call.getArg(0) and
+      node2.asExpr() = call.getValue() and
+      isList(call.getValue()) and
+      call.getName() = "extend"
+    )
+    or
+    // List comprehension of one long enough, without a condition
+    node1.asExpr() = node2.asExpr().(ListComp).getIterable() and
+    not node2.asExpr().(ListComp).getNthInnerLoop(_).getAStmt() instanceof If
+  }
+
+  predicate isSink(DataFlow::Node sink, FlowState state) {
+    // Subscript
+    exists(Subscript sub |
+      sink.asExpr() = sub.getValue() and
+      not exists(AssignStmt asgn | asgn.getATarget() = sub) and
+      (
+        state = sub.getIndex().(IntegerLiteral).getValue() or
+        state = sub.getIndex().(NegativeIntegerLiteral).getValue()
+      )
+    )
+  }
+}
+
+module ListIndexFlow = DataFlow::GlobalWithState<ListIndexConfig>;
+
+module DictKeyConfig implements DataFlow::StateConfigSig {
   class FlowState = string;
 
   additional FlowState exprToState(Expr e) {
     result = "\"" + e.(Str).getS() + "\"" or
     result = e.(Num).getN()
+  }
+
+  additional predicate isDict(Expr dict) {
+    // A dict literal defined
+    exists(Dict source | DataFlow::localFlow(DataFlow::exprNode(source), DataFlow::exprNode(dict)))
+    or
+    // Argument annotated as a dict
+    exists(DataFlow::ParameterNode source |
+      DataFlow::localFlow(source, DataFlow::exprNode(dict)) and
+      (
+        source.getParameter().getAnnotation().toString() = "dict"
+        or
+        source.getParameter().getAnnotation().toString() = "Dict"
+        or
+        source.getParameter().getAnnotation().toString().prefix(4) = "dict" and
+        source.getParameter().getAnnotation().toString().charAt(4) = "["
+        or
+        source.getParameter().getAnnotation().toString().prefix(4) = "Dict" and
+        source.getParameter().getAnnotation().toString().charAt(4) = "["
+      )
+    )
   }
 
   predicate isSource(DataFlow::Node source, FlowState state) {
@@ -52,7 +136,7 @@ module DictIndexConfig implements DataFlow::StateConfigSig {
   predicate isAdditionalFlowStep(DataFlow::Node node1, DataFlow::Node node2) {
     // Transfer flow from `node1` when used to `update` `node2`
     exists(MethodCall call |
-      node1.asExpr() = call.getAnArg() and
+      node1.asExpr() = call.getArg(0) and
       node2.asExpr() = call.getValue() and
       isDict(call.getValue()) and
       call.getName() = "update"
@@ -96,90 +180,17 @@ module DictIndexConfig implements DataFlow::StateConfigSig {
   }
 }
 
-module DictIndexFlow = DataFlow::GlobalWithState<DictIndexConfig>;
-
-predicate isDict(Expr dict) {
-  // A dict literal defined
-  exists(Dict source | DataFlow::localFlow(DataFlow::exprNode(source), DataFlow::exprNode(dict)))
-  or
-  // Argument annotated as a dict
-  exists(DataFlow::ParameterNode source |
-    DataFlow::localFlow(source, DataFlow::exprNode(dict)) and
-    (
-      source.getParameter().getAnnotation().toString() = "dict"
-      or
-      source.getParameter().getAnnotation().toString() = "Dict"
-      or
-      source.getParameter().getAnnotation().toString().prefix(4) = "dict" and
-      source.getParameter().getAnnotation().toString().charAt(4) = "["
-      or
-      source.getParameter().getAnnotation().toString().prefix(4) = "Dict" and
-      source.getParameter().getAnnotation().toString().charAt(4) = "["
-    )
-  )
-}
-
-predicate isList(Expr list) {
-  // A list literal defined
-  exists(List source | DataFlow::localFlow(DataFlow::exprNode(source), DataFlow::exprNode(list)))
-  or
-  // Argument annotated as a list
-  exists(DataFlow::ParameterNode source |
-    DataFlow::localFlow(source, DataFlow::exprNode(list)) and
-    (
-      source.getParameter().getAnnotation().toString() = "list"
-      or
-      source.getParameter().getAnnotation().toString() = "List"
-      or
-      source.getParameter().getAnnotation().toString().prefix(4) = "list" and
-      source.getParameter().getAnnotation().toString().charAt(5) = "["
-      or
-      source.getParameter().getAnnotation().toString().prefix(4) = "List" and
-      source.getParameter().getAnnotation().toString().charAt(5) = "["
-    )
-  )
-}
-
-predicate isListWithIndex(Expr list, int index) {
-  // A list literal defined long enough
-  exists(List source |
-    DataFlow::localFlow(DataFlow::exprNode(source), DataFlow::exprNode(list)) and
-    exists(Expr elem | source.getElt(index) = elem)
-  )
-  or
-  // List was extended using one long enough
-  exists(MethodCall source |
-    isList(source.getValue()) and
-    DataFlow::localFlow(DataFlow::exprNode(source.getValue()), DataFlow::exprNode(list)) and
-    source.getName() = "extend" and
-    isListWithIndex(source.getArg(0), index)
-  )
-  or
-  // List comprehension of one long enough, without a condition
-  exists(ListComp source |
-    DataFlow::localFlow(DataFlow::exprNode(source), DataFlow::exprNode(list)) and
-    isListWithIndex(source.getIterable(), index) and
-    not source.getNthInnerLoop(_).getAStmt() instanceof If
-  )
-}
+module DictKeyFlow = DataFlow::GlobalWithState<DictKeyConfig>;
 
 string getSubscriptMsg(Subscript sink) {
-  // Allow assigning to a dict
-  exists(AssignStmt asgn |
-    asgn.getATarget().(Subscript).getValue() = sink.getValue() and isDict(sink.getValue())
-  ) and
-  result = "This is a safe indexed assignment to a dict"
-  or
-  // Allow assigning to a list
-  isListWithIndex(sink.getValue(), sink.getIndex().(IntegerLiteral).getValue()) and
+  exists(DataFlow::Node source | ListIndexFlow::flow(source, DataFlow::exprNode(sink.getValue()))) and
   (
-    if exists(AssignStmt asgn | asgn.getATarget() = sink)
-    then result = "This is a safe indexed assignment to a list"
-    else
-      result = "This is a safe list access of '" + sink.getIndex().(IntegerLiteral).getValue() + "'"
+    result = "This is a safe list access of '" + sink.getIndex().(IntegerLiteral).getValue() + "'" or
+    result =
+      "This is a safe list access of '" + sink.getIndex().(NegativeIntegerLiteral).getValue() + "'"
   )
   or
-  exists(DataFlow::Node source | DictIndexFlow::flow(source, DataFlow::exprNode(sink.getValue()))) and
+  exists(DataFlow::Node source | DictKeyFlow::flow(source, DataFlow::exprNode(sink.getValue()))) and
   result = "This is a safe dictionary access of '" + sink.getIndex().(Str).getS() + "'"
 }
 
