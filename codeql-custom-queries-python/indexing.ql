@@ -75,6 +75,15 @@ module DictIndexConfig implements DataFlow::StateConfigSig {
         comp.getNthInnerLoop(_).getTarget().(Tuple).getElt(0).(Name).getVariable() and
       not comp.getNthInnerLoop(_).getAStmt() instanceof If
     )
+    or
+    // Dict comprehension of `keys()` of one containing key, without a condition, using the key
+    exists(DictComp comp |
+      node1.asExpr() = comp.getIterable().(MethodCall).getValue() and
+      node2.asExpr() = comp and
+      comp.getIterable().(MethodCall).getName() = "keys" and
+      comp.getElt().(Tuple).getElt(1).(Name).getVariable() = comp.getIterationVariable(0) and
+      not comp.getNthInnerLoop(_).getAStmt() instanceof If
+    )
   }
 
   predicate isSink(DataFlow::Node sink, FlowState state) {
@@ -107,63 +116,6 @@ predicate isDict(Expr dict) {
       source.getParameter().getAnnotation().toString().prefix(4) = "Dict" and
       source.getParameter().getAnnotation().toString().charAt(4) = "["
     )
-  )
-}
-
-predicate isDictWithKey(Expr dict, string key) {
-  // A dict literal defined with the exact key
-  exists(Dict source |
-    DataFlow::localFlow(DataFlow::exprNode(source), DataFlow::exprNode(dict)) and
-    (
-      key = source.getAKey().(Str).getS() or
-      key = source.getAKey().(Num).getN()
-    )
-  )
-  or
-  // Dict was assigned a value for the key
-  exists(AssignStmt source |
-    DataFlow::localFlow(DataFlow::exprNode(source.getATarget().(Subscript).getValue()),
-      DataFlow::exprNode(dict)) and
-    (
-      key = source.getATarget().(Subscript).getIndex().(Str).getS() or
-      key = source.getATarget().(Subscript).getIndex().(Num).getN()
-    ) and
-    source.getATarget().(Subscript).getValue() != dict
-  )
-  or
-  // Dict was updated using one with key
-  exists(MethodCall source |
-    isDict(source.getValue()) and
-    DataFlow::localFlow(DataFlow::exprNode(source.getValue()), DataFlow::exprNode(dict)) and
-    source.getName() = "update" and
-    isDictWithKey(source.getArg(0), key)
-  )
-  or
-  // Dict comprehension of one containing key, without a condition, using the key
-  exists(DictComp source |
-    DataFlow::localFlow(DataFlow::exprNode(source), DataFlow::exprNode(dict)) and
-    isDictWithKey(source.getIterable(), key) and
-    source.getElt().(Tuple).getElt(1).(Name).getVariable() = source.getIterationVariable(0) and
-    not source.getNthInnerLoop(_).getAStmt() instanceof If
-  )
-  or
-  // Dict comprehension of `items()` of one containing key, without a condition, using the key
-  exists(DictComp source |
-    DataFlow::localFlow(DataFlow::exprNode(source), DataFlow::exprNode(dict)) and
-    source.getIterable().(MethodCall).getName() = "items" and
-    isDictWithKey(source.getIterable().(MethodCall).getValue(), key) and
-    source.getElt().(Tuple).getElt(1).(Name).getVariable() =
-      source.getNthInnerLoop(_).getTarget().(Tuple).getElt(0).(Name).getVariable() and
-    not source.getNthInnerLoop(_).getAStmt() instanceof If
-  )
-  or
-  // Dict comprehension of `keys()` of one containing key, without a condition, using the key
-  exists(DictComp source |
-    DataFlow::localFlow(DataFlow::exprNode(source), DataFlow::exprNode(dict)) and
-    source.getIterable().(MethodCall).getName() = "keys" and
-    isDictWithKey(source.getIterable().(MethodCall).getValue(), key) and
-    source.getElt().(Tuple).getElt(1).(Name).getVariable() = source.getIterationVariable(0) and
-    not source.getNthInnerLoop(_).getAStmt() instanceof If
   )
 }
 
@@ -227,19 +179,16 @@ string getSubscriptMsg(Subscript sink) {
       result = "This is a safe list access of '" + sink.getIndex().(IntegerLiteral).getValue() + "'"
   )
   or
-  (
-    isDictWithKey(sink.getValue(), sink.getIndex().(Str).getS()) or
-    isDictWithKey(sink.getValue(), sink.getIndex().(Num).getN())
-  ) and
+  exists(DataFlow::Node source | DictIndexFlow::flow(source, DataFlow::exprNode(sink.getValue()))) and
   result = "This is a safe dictionary access of '" + sink.getIndex().(Str).getS() + "'"
 }
 
-// from Subscript sink, string msg
-// where msg = getSubscriptMsg(sink)
-// select sink, msg
+from Subscript sink, string msg
+where msg = getSubscriptMsg(sink)
+select sink, msg
 // from DataFlow::Node source, DataFlow::FlowState state
 // where DictIndexConfig::isSink(source, state)
 // select source, state.toString()
-from DataFlow::Node source, Subscript sink
-where DictIndexFlow::flow(source, DataFlow::exprNode(sink.getValue()))
-select sink, sink.toString()
+// from DataFlow::Node source, Subscript sink
+// where DictIndexFlow::flow(source, DataFlow::exprNode(sink.getValue()))
+// select sink, sink.toString()
