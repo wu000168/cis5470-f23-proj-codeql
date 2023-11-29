@@ -18,7 +18,13 @@ def safe_3(d: dict):
     return d['a'] + d['b']
 
 
-def unsafe(d: dict):
+def unsafe_1(d: dict):
+    d.update({})
+
+    return d['a']
+
+
+def unsafe_2(d: dict):
     d.update({'a': 0})
 
     return d['a'] + d['b']  # First is safe, second is unsafe
