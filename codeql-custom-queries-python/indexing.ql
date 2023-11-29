@@ -22,24 +22,37 @@ class MethodCall extends Call {
 module DictIndexConfig implements DataFlow::StateConfigSig {
   class FlowState = string;
 
+  additional FlowState exprToState(Expr e) {
+    result = "\"" + e.(Str).getS() + "\"" or
+    result = e.(Num).getN()
+  }
+
   predicate isSource(DataFlow::Node source, FlowState state) {
     // Dictionary literal
-    (
-      state = "\"" + source.asExpr().(Dict).getAKey().(Str).getS() + "\""
-      or
-      state = source.asExpr().(Dict).getAKey().(Num).getN()
-    )
+    state = exprToState(source.asExpr().(Dict).getAKey())
     or
     // Assignment to dictionary
     isDict(source.asExpr()) and
     exists(AssignStmt asgn, Subscript sub |
       asgn.getATarget() = sub and
       sub.getValue() = source.asExpr() and
-      (
-        state = "\"" + sub.getIndex().(Str).getS() + "\"" or
-        state = sub.getIndex().(Num).getN()
-      )
+      state = exprToState(sub.getIndex())
     )
+  }
+
+  predicate isBarrierOut(DataFlow::Node node, FlowState state) {
+    // Deleting key
+    exists(Delete del, Subscript sub |
+      del.getATarget() = sub and
+      sub.getValue() = node.asExpr() and
+      state = exprToState(sub.getIndex())
+    )
+  }
+
+  predicate isAdditionalFlowStep(
+    DataFlow::Node node1, FlowState state1, DataFlow::Node node2, FlowState state2
+  ) {
+    none()
   }
 
   predicate isSink(DataFlow::Node sink, FlowState state) {
