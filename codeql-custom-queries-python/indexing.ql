@@ -220,9 +220,3 @@ string getSubscriptMsg(Subscript sub) {
 from Subscript sink, string msg
 where msg = getSubscriptMsg(sink)
 select sink, msg
-// from DataFlow::Node source, DataFlow::FlowState state
-// where DictIndexConfig::isSink(source, state)
-// select source, state.toString()
-// from DataFlow::Node source, Subscript sink
-// where DictIndexFlow::flow(source, DataFlow::exprNode(sink.getValue()))
-// select sink, sink.toString()
