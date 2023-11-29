@@ -50,15 +50,26 @@ module DictIndexConfig implements DataFlow::StateConfigSig {
   }
 
   predicate isAdditionalFlowStep(DataFlow::Node node1, DataFlow::Node node2) {
+    // Transfer flow from `node1` when used to `update` `node2`
     exists(MethodCall call |
       isDict(call.getValue()) and
       call.getName() = "update" and
       call.getValue() = node2.asExpr() and
       call.getAnArg() = node1.asExpr()
     )
+    or
+    // Dict comprehension of one containing key, without a condition, using the key
+    exists(DictComp comp |
+      comp = node2.asExpr() and
+      isDict(comp.getIterable()) and
+      comp.getIterable() = node1.asExpr() and
+      comp.getElt().(Tuple).getElt(1).(Name).getVariable() = comp.getIterationVariable(0) and
+      not comp.getNthInnerLoop(_).getAStmt() instanceof If
+    )
   }
 
   predicate isSink(DataFlow::Node sink, FlowState state) {
+    // Subscript which isn't an assignment
     exists(Subscript sub |
       sink.asExpr() = sub.getValue() and
       not exists(AssignStmt asgn | asgn.getATarget() = sub) and
