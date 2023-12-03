@@ -1,0 +1,17 @@
+{
+  "folders": [
+    {
+      "path": "codeql-custom-queries-python"
+    },
+    {
+      "path": "ql"
+    },
+    {
+      "name": "[db source archive]",
+      "uri": "codeql-zip-archive://0-55/home/jtao/phd/classes/analysis/codeql/tests/db/src.zip"
+    }
+  ],
+  "settings": {
+    "omnisharp.autoStart": false
+  }
+}
