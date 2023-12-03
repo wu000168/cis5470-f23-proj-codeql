@@ -1,4 +1,5 @@
 def raise_variable():
+    # SHOULD NOT be in the output
     try:
         x = Exception("This is an exception")
         raise x
@@ -7,6 +8,7 @@ def raise_variable():
 
 
 def raise_variable_alias():
+    # SHOULD NOT be in the output
     try:
         x = Exception("This is an exception")
         y = x
@@ -15,16 +17,8 @@ def raise_variable_alias():
         pass
 
 
-def raise_variable_conditional():
-    x = ValueError("This is a value error")
-    if True:
-        y = x
-    else:
-        y = NotImplementedError("This is a not implemented error")
-    raise y
-
-
 def catch_all_variables():
+    # SHOULD NOT be in the output
     try:
         x = ValueError("This is a value error")
         y = NotImplementedError("This is a not implemented error")
@@ -38,8 +32,12 @@ def catch_all_variables():
 
 def catch_one_variable():
     try:
+        # SHOULD NOT BE in the output
         x = ValueError("This is a value error")
+
+        # SHOULD BE in the output
         y = NotImplementedError("This is a not implemented error")
+
         if True:
             raise x
         else:
@@ -51,8 +49,12 @@ def catch_one_variable():
 
 def catch_other_variable():
     try:
+        # SHOULD BE in the output
         x = ValueError("This is a value error")
+
+        # SHOULD NOT BE in the output
         y = NotImplementedError("This is a not implemented error")
+
         if True:
             raise x
         else:
@@ -63,6 +65,7 @@ def catch_other_variable():
 
 
 def except_a_variable():
+    # SHOULD NOT BE in the output
     e = Exception
     try:
         raise Exception()
