@@ -6,7 +6,6 @@
  */
 
 import python
-import semmle.python.ApiGraphs
 import semmle.python.dataflow.new.DataFlow
 
 class MethodCall extends Call {
