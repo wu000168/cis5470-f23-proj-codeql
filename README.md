@@ -1,1 +1,1 @@
-# cis5470-f23-proj-codeql
+# Python CodeQL Analysis
