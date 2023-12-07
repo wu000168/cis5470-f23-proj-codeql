@@ -56,6 +56,12 @@ module ListIndexConfig implements DataFlow::StateConfigSig {
     or
     // Popping
     exists(MethodCall call | node.asExpr() = call.getValue() and call.getName() = "pop")
+    or
+    // Delete
+    exists(Delete del, Subscript sub |
+      del.getATarget() = sub and
+      sub.getValue() = node.asExpr()
+    )
   }
 
   predicate isAdditionalFlowStep(DataFlow::Node node1, DataFlow::Node node2) {

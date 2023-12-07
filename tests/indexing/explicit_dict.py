@@ -10,15 +10,7 @@ def safe_2():
     return d[1]
 
 
-def unsafe_1():
+def unsafe():
     d = {'x': 1}
 
     return d['y']
-
-
-def unsafe_2():
-    d = {'x': 1}
-
-    del d['x']
-
-    return d['x']
