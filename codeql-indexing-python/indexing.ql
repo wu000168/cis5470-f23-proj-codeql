@@ -262,14 +262,12 @@ string getSubscriptMsg(Subscript sub) {
   not exists(AssignStmt asgn | asgn.getATarget() = sub) and
   (
     if exists(DataFlow::Node source | DictKeyFlow::flow(source, DataFlow::exprNode(sub.getValue())))
-    then (
-      result = "This is a safe dictionary access of \"" + sub.getIndex().(Str).getS() + "\"" or
-      result = "This is a safe dictionary access of " + sub.getIndex().(Num).getN()
-    ) else (
+    then
+      result = "This is a safe dictionary access of " + DictKeyConfig::exprToState(sub.getIndex())
+    else
       result =
-        "This is a potentially unsafe dictionary access of \"" + sub.getIndex().(Str).getS() + "\"" or
-      result = "This is a potentially unsafe dictionary access of " + sub.getIndex().(Num).getN()
-    )
+        "This is a potentially unsafe dictionary access of " +
+          DictKeyConfig::exprToState(sub.getIndex())
   )
 }
 
