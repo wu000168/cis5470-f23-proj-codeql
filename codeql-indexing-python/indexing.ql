@@ -198,35 +198,57 @@ module DictKeyFlow = DataFlow::GlobalWithState<DictKeyConfig>;
 
 string getSubscriptMsg(Subscript sub) {
   ListIndexConfig::isList(sub.getValue()) and
-  not exists(DataFlow::Node source |
-    ListIndexFlow::flow(source, DataFlow::exprNode(sub.getValue()))
-  ) and
   (
-    if exists(AssignStmt asgn | asgn.getATarget() = sub)
+    if
+      exists(DataFlow::Node source |
+        ListIndexFlow::flow(source, DataFlow::exprNode(sub.getValue()))
+      )
     then (
-      result =
-        "This is a potentially unsafe list assignment at index " +
-          sub.getIndex().(IntegerLiteral).getValue() or
-      result =
-        "This is a potentially unsafe list assignment at index " +
-          sub.getIndex().(NegativeIntegerLiteral).getValue()
+      if exists(AssignStmt asgn | asgn.getATarget() = sub)
+      then (
+        result =
+          "This is a safe list assignment at index " + sub.getIndex().(IntegerLiteral).getValue() or
+        result =
+          "This is a safe list assignment at index " +
+            sub.getIndex().(NegativeIntegerLiteral).getValue()
+      ) else (
+        result = "This is a safe list access at index " + sub.getIndex().(IntegerLiteral).getValue() or
+        result =
+          "This is a safe list access at index " +
+            sub.getIndex().(NegativeIntegerLiteral).getValue()
+      )
     ) else (
-      result =
-        "This is a potentially unsafe list access at index " +
-          sub.getIndex().(IntegerLiteral).getValue() or
-      result =
-        "This is a potentially unsafe list access at index " +
-          sub.getIndex().(NegativeIntegerLiteral).getValue()
+      if exists(AssignStmt asgn | asgn.getATarget() = sub)
+      then (
+        result =
+          "This is a potentially unsafe list assignment at index " +
+            sub.getIndex().(IntegerLiteral).getValue() or
+        result =
+          "This is a potentially unsafe list assignment at index " +
+            sub.getIndex().(NegativeIntegerLiteral).getValue()
+      ) else (
+        result =
+          "This is a potentially unsafe list access at index " +
+            sub.getIndex().(IntegerLiteral).getValue() or
+        result =
+          "This is a potentially unsafe list access at index " +
+            sub.getIndex().(NegativeIntegerLiteral).getValue()
+      )
     )
   )
   or
   DictKeyConfig::isDict(sub.getValue()) and
   not exists(AssignStmt asgn | asgn.getATarget() = sub) and
-  not exists(DataFlow::Node source | DictKeyFlow::flow(source, DataFlow::exprNode(sub.getValue()))) and
   (
-    result =
-      "This is a potentially unsafe dictionary access of \"" + sub.getIndex().(Str).getS() + "\"" or
-    result = "This is a potentially unsafe dictionary access of " + sub.getIndex().(Num).getN()
+    if exists(DataFlow::Node source | DictKeyFlow::flow(source, DataFlow::exprNode(sub.getValue())))
+    then (
+      result = "This is a safe dictionary access of \"" + sub.getIndex().(Str).getS() + "\"" or
+      result = "This is a safe dictionary access of " + sub.getIndex().(Num).getN()
+    ) else (
+      result =
+        "This is a potentially unsafe dictionary access of \"" + sub.getIndex().(Str).getS() + "\"" or
+      result = "This is a potentially unsafe dictionary access of " + sub.getIndex().(Num).getN()
+    )
   )
 }
 
