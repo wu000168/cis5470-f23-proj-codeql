@@ -10,6 +10,8 @@ def safe_1(x: bool):
 def safe_2(x: bool):
     if x:
         l = [1]
+    elif:
+        l = ['ats']
     else:
         l = [7, 'k']
 

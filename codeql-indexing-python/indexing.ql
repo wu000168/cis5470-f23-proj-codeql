@@ -47,6 +47,8 @@ module ListIndexConfig implements DataFlow::StateConfigSig {
     exists(Expr elem | source.asExpr().(List).getElt(state) = elem)
   }
 
+  predicate isBarrierIn(DataFlow::Node node) { joinsIf(node.asCfgNode()) }
+
   predicate isBarrierOut(DataFlow::Node node) {
     // List was cleared
     exists(MethodCall call | node.asExpr() = call.getValue() and call.getName() = "clear")
@@ -121,6 +123,8 @@ module DictKeyConfig implements DataFlow::StateConfigSig {
       state = exprToState(sub.getIndex())
     )
   }
+
+  predicate isBarrierIn(DataFlow::Node node) { joinsIf(node.asCfgNode()) }
 
   predicate isBarrierOut(DataFlow::Node node) {
     // Dict was cleared
@@ -224,6 +228,17 @@ string getSubscriptMsg(Subscript sub) {
       "This is a potentially unsafe dictionary access of \"" + sub.getIndex().(Str).getS() + "\"" or
     result = "This is a potentially unsafe dictionary access of " + sub.getIndex().(Num).getN()
   )
+}
+
+predicate stmtIsInIf(Stmt stmt) { exists(If i | (stmt = i.getAStmt() or stmt = i.getAnOrelse())) }
+
+predicate joinsIf(ControlFlowNode node) {
+  stmtIsInIf(fromCF(node.getAPredecessor())) and
+  not stmtIsInIf(fromCF(node))
+}
+
+Stmt fromCF(ControlFlowNode node) {
+  result.getAChildNode() = node.getNode() and not result instanceof If
 }
 
 from Subscript sink, string msg
