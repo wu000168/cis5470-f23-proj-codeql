@@ -26,6 +26,11 @@ module ListIndexConfig implements DataFlow::StateConfigSig {
     // A list literal defined
     exists(List source | DataFlow::localFlow(DataFlow::exprNode(source), DataFlow::exprNode(list)))
     or
+    // A list comprehension
+    exists(ListComp source |
+      DataFlow::localFlow(DataFlow::exprNode(source), DataFlow::exprNode(list))
+    )
+    or
     // Argument annotated as a list
     exists(DataFlow::ParameterNode source |
       DataFlow::localFlow(source, DataFlow::exprNode(list)) and
@@ -103,6 +108,11 @@ module DictKeyConfig implements DataFlow::StateConfigSig {
   additional predicate isDict(Expr dict) {
     // A dict literal defined
     exists(Dict source | DataFlow::localFlow(DataFlow::exprNode(source), DataFlow::exprNode(dict)))
+    or
+    // A dict comprehension
+    exists(DictComp source |
+      DataFlow::localFlow(DataFlow::exprNode(source), DataFlow::exprNode(dict))
+    )
     or
     // Argument annotated as a dict
     exists(DataFlow::ParameterNode source |
