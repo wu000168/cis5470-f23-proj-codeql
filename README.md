@@ -10,8 +10,8 @@ To generate CodeQL databases (you must have the `codeql` CLI installed):
 make db
 ```
 
-To run queries, you must have the VS Code CodeQL extension installed.
-If the databases do not appear in the sidebar, build the databases with the commad above and restart VS Code.
+To run queries, you must have the VSCode CodeQL extension installed.
+If the databases do not appear in the sidebar, build the databases with the command above and restart VS Code.
 
 ![](docs/extension.png)
 
