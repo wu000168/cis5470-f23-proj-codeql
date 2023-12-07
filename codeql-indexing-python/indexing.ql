@@ -53,6 +53,9 @@ module ListIndexConfig implements DataFlow::StateConfigSig {
   predicate isBarrierOut(DataFlow::Node node) {
     // List was cleared
     exists(MethodCall call | node.asExpr() = call.getValue() and call.getName() = "clear")
+    or
+    // Popping
+    exists(MethodCall call | node.asExpr() = call.getValue() and call.getName() = "pop")
   }
 
   predicate isAdditionalFlowStep(DataFlow::Node node1, DataFlow::Node node2) {
