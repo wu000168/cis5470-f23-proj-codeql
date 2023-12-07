@@ -8,6 +8,7 @@
 import python
 import semmle.python.dataflow.new.DataFlow
 
+// Calls of the form `x.y(...)`
 class MethodCall extends Call {
   Attribute attr;
 
@@ -196,6 +197,7 @@ module DictKeyConfig implements DataFlow::StateConfigSig {
 
 module DictKeyFlow = DataFlow::GlobalWithState<DictKeyConfig>;
 
+// Get the appropriate message for a given Subscript
 string getSubscriptMsg(Subscript sub) {
   ListIndexConfig::isList(sub.getValue()) and
   (
@@ -252,13 +254,16 @@ string getSubscriptMsg(Subscript sub) {
   )
 }
 
+// Is true if the statement is inside of an if block
 predicate stmtIsInIf(Stmt stmt) { exists(If i | (stmt = i.getAStmt() or stmt = i.getAnOrelse())) }
 
+// Is true if the statement is the first statement outside of an if block
 predicate joinsIf(ControlFlowNode node) {
   stmtIsInIf(fromCF(node.getAPredecessor())) and
   not stmtIsInIf(fromCF(node))
 }
 
+// Get potential If joins
 Stmt fromCF(ControlFlowNode node) {
   result.getAChildNode() = node.getNode() and not result instanceof If
 }
